@@ -36,7 +36,7 @@ class Display(QWidget):
         self.cruise_indicator.setAlignment(q.Qt.AlignRight)
         self.cruise_indicator.setMaximumHeight(100)
         
-        #values of previously mentioned parameters
+        #values of vehicle parameters
         self.indicator=QLineEdit(self)
         self.indicator.setReadOnly(True)
         self.indicator.setFont(font)
@@ -51,18 +51,21 @@ class Display(QWidget):
         self.set_cruise.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.set_cruise.clicked.connect(self.sets)
         self.set_cruise.setDisabled(True)
+        
         #resume vehicle speed
         self.resume=QPushButton('Resume',self)
         self.resume.setFont(font)
         self.resume.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.resume.clicked.connect(self.resumes)
         self.resume.setDisabled(True)
+        
         #cancel cruise
         self.cancel=QPushButton('Cancel',self)
         self.cancel.setFont(font)
         self.cancel.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.cancel.clicked.connect(self.cancels)
         self.cancel.setDisabled(True)
+        
         #turn cruise on and off
         self.cruise_state=QPushButton('On\Off',self)
         self.cruise_state.setCheckable(True)
@@ -112,7 +115,7 @@ class Display(QWidget):
             
     def resumes(self):
         '''Resumes the pickup to set speed'''
-        self.indicator.setText('Resuming to {}:'.format(self.set_speed))
+        self.indicator.setText('Resuming to {:.1f}:'.format(self.set_speed))
         
     def cancels(self):
         '''Cancels and keeps set speed'''
@@ -122,7 +125,7 @@ class Display(QWidget):
     def sets(self):
         '''Sets the speed for the cruise control'''
         self.set_speed=sp.Gauges.find_speed(self)[0]
-        self.indicator.setText('Set at {:.2f}'.format(self.set_speed))
+        self.indicator.setText('Set at {:.1f}'.format(self.set_speed))
         self.cancel.setEnabled(True)
         self.resume.setEnabled(False)
     
@@ -139,29 +142,40 @@ class Mileage(QThread):
     
     def run(self):
         '''Starting the thread'''
+        #this file is opened and left open to write the new values back to when
+        #at a stop light/stop sign
         file=open('odometer.csv','r+')
         mile=float(file.readlines()[0])
         st=time.time()
         delta=0
+        speed_run_time=0
         #inplace an infinite while loop, which would be used in reality, this times 
-        #out after 20 seconds of run time
-        while delta<40.0:
+        #out after 40 seconds of run time
+        while delta<60.0:
+            speed_time=time.time()
             self.changelcd.emit(int(sp.Gauges.find_speed(self)[0]))
-            delta_mileage=sp.Gauges.find_speed(self)[1]
-            mile+=delta_mileage
-            self.change_odometer.emit(str(round(mile,2)))
+            #assumes a constant speed between the data points
+            mile+=sp.Gauges.find_speed(self)[0]*(speed_run_time/3600)
+            #emit a signal to be used for display purposes
+            self.change_odometer.emit(str(round(mile,1)))
+            #speed the vehicle is traveling at currently
             speed=sp.Gauges.find_speed(self)[0]
-            time.sleep(1)
+            #pause so its is readable
+            time.sleep(.5)
             if speed<0.1:
                 #finding the top line and writing the new mileage count to it
                 file.seek(0,0)
                 file.truncate(0)
                 file.write(str(mile))
                 file.close()
+                #wait a second
                 time.sleep(0.25)
+                #reopen the file and get the new mileage
                 file=open('odometer.csv','r+')
                 mile=float(file.readlines()[0])
             delta=time.time()-st
+            speed_run_time=time.time()-speed_time
+            
         file.close()
             
 class Gauge_Readouts(QThread):
@@ -171,6 +185,7 @@ class Gauge_Readouts(QThread):
     def __init__(self,parent=None):
         '''initialize the thread'''
         QThread.__init__(self, parent=parent)
+        
     def run(self):
         '''Display the values'''
         st=time.time()
@@ -178,8 +193,9 @@ class Gauge_Readouts(QThread):
         #delay cycle for gauge cluster
         wait=2
         #inplace an infinite while loop, which would be used in reality, this times 
-        #out after 20 seconds of run time
-        while delta<40.0: 
+        #out after 40 seconds of run time
+        while delta<60.0: 
+            #emitting signals for all the various parameters and pausing so they are readable
             self.values.emit('Oil Pressure: {} psi'.format(sp.Gauges.find_oil_pressure(self)))
             time.sleep(wait)
             self.values.emit('Fuel Level: {}%'.format(sp.Gauges.find_fuel_level(self)))
@@ -194,9 +210,7 @@ class Gauge_Readouts(QThread):
             delta=time.time()-st
                             
 if __name__ == "__main__":
-    start=time.time()
     app = QApplication(sys.argv)
     window = Display()
     window.show()
     sys.exit(app.exec_())
-    end=time.time()

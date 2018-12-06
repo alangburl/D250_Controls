@@ -7,14 +7,10 @@ class Gauges():
     def find_speed(self):
         ''''Determine the speed from the GPIO input pins
         ***this is a simulated result for the purposes of this project***''' 
-        st=time.time()
-        read_value=np.random.rand()
-        scalar=np.random.randint(0,100)
-        output_value=int(read_value*scalar)
-        end=time.time()-st
-        delta_mileage=output_value*end
-        
-        return output_value,delta_mileage
+#        read_value=np.random.rand()
+        scalar=np.random.randint(40,60)
+        output_value=int(1*scalar)
+        return output_value,1
     
     def find_oil_pressure(self):
         '''Find the oil pressure from the GPIO pins
@@ -36,7 +32,7 @@ class Gauges():
         '''Find the temperature from the GPIO pins
         ***this is a simulated result for the purposes of this project***'''
         read_value=np.random.rand()
-        scalar=np.random.randint(0,220)
+        scalar=np.random.randint(100,220)
         output_value=int(read_value*scalar)
         if output_value>200:
             return 'OVERHEAT'
@@ -47,7 +43,7 @@ class Gauges():
         '''Find the voltage from the GPIO pins
         ***this is a simulated result for the purposes of this project***'''
         read_value=np.random.rand()
-        scalar=np.random.randint(0,16)
+        scalar=np.random.randint(11,16)
         output_value=int(read_value*scalar)
         if output_value>200:
             return 'OVERCHARGE'
