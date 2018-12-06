@@ -239,7 +239,7 @@ class Throttle_Position(QThread):
                 self.current_position=0
             elif self.current_position>100:
                 self.current_position=100
-            #emit a signal for the throttel position, would probably be read 
+            #emit a signal for the throttle position, would probably be read 
             #from the encoder on the stepper motor
             self.throttle_position.emit(self.current_position)
             time.sleep(0.1)
