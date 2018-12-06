@@ -8,6 +8,7 @@ from PyQt5.QtGui import QFont
 import PyQt5.QtCore as q
 
 import Speedometer as sp
+import PID as PID
 
 class Display(QWidget):
     def __init__(self):
@@ -92,7 +93,6 @@ class Display(QWidget):
     def initUI(self):
         '''Setting up the GUI'''
         self.th=Mileage(self)
-        self.th.changeprogressbar.connect(self.throttle_position.setValue)
         self.th.changelcd.connect(self.speed.display)
         self.th.change_odometer.connect(self.cruise_indicator.setText)
         self.th.start()
@@ -116,11 +116,15 @@ class Display(QWidget):
     def resumes(self):
         '''Resumes the pickup to set speed'''
         self.indicator.setText('Resuming to {:.1f}:'.format(self.set_speed))
+        self.maintain=Throttle_Position(self.set_speed)
+        self.maintain.throttle_position.connect(self.throttle_position.setValue)
+        self.maintain.start()
         
     def cancels(self):
         '''Cancels and keeps set speed'''
-        self.indicator.setText('Cancels')
+        self.indicator.setText('Cancel')
         self.resume.setEnabled(True)
+        self.maintain.running=False
         
     def sets(self):
         '''Sets the speed for the cruise control'''
@@ -128,10 +132,12 @@ class Display(QWidget):
         self.indicator.setText('Set at {:.1f}'.format(self.set_speed))
         self.cancel.setEnabled(True)
         self.resume.setEnabled(False)
+        self.maintain=Throttle_Position(self.set_speed)
+        self.maintain.throttle_position.connect(self.throttle_position.setValue)
+        self.maintain.start()
     
 class Mileage(QThread):
     '''Creates the thread to update the progress bar'''
-    changeprogressbar=pyqtSignal(int)
     changelcd=pyqtSignal(int)
     change_odometer=pyqtSignal(str)
     
@@ -208,6 +214,37 @@ class Gauge_Readouts(QThread):
             time.sleep(wait)
             self.values.emit('Boost: {} psi'.format(sp.Gauges.find_boost(self)))
             delta=time.time()-st
+class Throttle_Position(QThread):
+    '''Update the throttle position and send out 
+       the command to the stepper motor
+    '''
+    throttle_position=pyqtSignal(int)
+    def __init__(self, desired_speed):
+        QThread.__init__(self)
+        self.desired_speed=desired_speed
+        self.current_position=sp.Gauges.find_speed(self)[0]
+        
+    def run(self):
+        '''Update the progress bar based on a PID controller
+        '''
+        delta=0.0001
+        controller=PID.Controller(self.desired_speed)
+        self.running=True
+        while self.running:    
+            s=time.time()
+            self.current_position=sp.Gauges.find_speed(self)[0]
+            self.current_position*=controller.calculate(self.current_position,delta)
+            #setting upper and lower bounds for the throttle commanded values
+            if self.current_position<0:
+                self.current_position=0
+            elif self.current_position>100:
+                self.current_position=100
+            #emit a signal for the throttel position, would probably be read 
+            #from the encoder on the stepper motor
+            self.throttle_position.emit(self.current_position)
+            time.sleep(0.1)
+            delta=time.time()-s
+        self.throttle_position.emit(0)
                             
 if __name__ == "__main__":
     app = QApplication(sys.argv)

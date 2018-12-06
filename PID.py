@@ -7,11 +7,11 @@ class Controller(object):
     
     def calculate(self,actual,DT,ui_past=0,error_past=0):
         '''calculate pid controller''' 
-        ki=10
-        kd=7
-        kp=5                   
+        ki=0.001
+        kd=.01
+        kp=.01                   
         uimax=10
-        error= actual-self.desire
+        error= actual-self.desired_speed
         up=error*kp
         ui=ki*error*DT+ui_past
         ui_past=ui
@@ -24,4 +24,4 @@ class Controller(object):
         ud=kd*(error-error_past)/DT
         error_past=error
         ut=up+ui+ud
-        self.ut=ut        
+        return ut    

@@ -8,7 +8,7 @@ class Gauges():
         ''''Determine the speed from the GPIO input pins
         ***this is a simulated result for the purposes of this project***''' 
 #        read_value=np.random.rand()
-        scalar=np.random.randint(40,60)
+        scalar=np.random.randint(20,90)
         output_value=int(1*scalar)
         return output_value,1
     
